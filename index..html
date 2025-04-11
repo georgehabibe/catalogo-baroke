@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Músicas - Barokê</title>
+    <style>
+        :root {
+            --primary-color: #2A2A72;
+            --secondary-color: #009FFD;
+            --accent-color: #FFA400;
+            --background-color: #f8f9fa;
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .btn-category {
+            flex: 1 1 200px;
+            padding: 12px 20px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-category:hover {
+            background-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-container {
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid var(--secondary-color);
+            border-radius: 50px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            padding-left: 45px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 159, 253, 0.3);
+        }
+
+        .music-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .music-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+
+        .music-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .favorite-star {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            cursor: pointer;
+            color: var(--accent-color);
+            font-size: 28px;
+            transition: transform 0.2s ease;
+        }
+
+        .favorite-star:hover {
+            transform: scale(1.2);
+        }
+
+        .music-info {
+            margin-top: 15px;
+        }
+
+        .music-title {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .music-artist {
+            color: var(--text-color);
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .music-code {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Catálogo de Músicas</h1>
+            <p>Barokê - Seu karaokê preferido</p>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-category" onclick="filterCategory('nacionais')">🎵 Nacionais</button>
+            <button class="btn-category" onclick="filterCategory('internacionais')">🌎 Internacionais</button>
+            <button class="btn-category" onclick="filterCategory('novidades')">🎉 Novidades</button>
+        </div>
+
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-box" placeholder="Pesquisar música, cantor ou código..." onkeyup="searchMusic(this.value)">
+        </div>
+
+        <div class="music-grid" id="musicContainer">
+            <!-- Cards de música serão inseridos aqui -->
+        </div>
+    </div>
+
+    <script>
+        let allMusic = [];
+        let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+
+        // Carregar e ordenar dados
+        async function loadMusicData() {
+            try {
+                const response = await fetch('https://brk2-1ba1a.firebaseio.com/karaoke.json');
+                const data = await response.json();
+                
+                allMusic = [];
+                for (const category in data) {
+                    for (const code in data[category]) {
+                        const music = data[category][code];
+                        allMusic.push({
+                            id: `${category}-${code}`,
+                            code: code,
+                            category: category,
+                            artist: music.CANTOR.toUpperCase(),
+                            title: music.MUSICA,
+                            lyrics: music.LETRA
+                        });
+                    }
+                }
+                
+                // Ordenar por artista
+                allMusic.sort((a, b) => a.artist.localeCompare(b.artist));
+                renderMusic(allMusic);
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+            }
+        }
+
+        // Renderizar músicas
+        function renderMusic(musicList) {
+            const container = document.getElementById('musicContainer');
+            container.innerHTML = '';
+            
+            musicList.forEach(music => {
+                const isFavorite = favorites.includes(music.id);
+                const card = document.createElement('div');
+                card.className = 'music-card';
+                card.innerHTML = `
+                    <div class="music-info">
+                        <div class="music-title">${music.title}</div>
+                        <div class="music-artist">${music.artist}</div>
+                        <div class="music-code">Código: ${music.code}</div>
+                    </div>
+                    <div class="favorite-star" onclick="toggleFavorite('${music.id}')">
+                        ${isFavorite ? '★' : '☆'}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Filtros
+        function filterCategory(category) {
+            const filtered = allMusic.filter(music => music.category === category)
+                                   .sort((a, b) => a.artist.localeCompare(b.artist));
+            renderMusic(filtered);
+        }
+
+        // Pesquisa aprimorada
+        function searchMusic(query) {
+            const searchText = query.trim().toUpperCase();
+            const results = allMusic.filter(music => 
+                music.title.toUpperCase().includes(searchText) || 
+                music.artist.includes(searchText) ||
+                music.code.includes(query)
+            ).sort((a, b) => a.artist.localeCompare(b.artist));
+            
+            renderMusic(results);
+        }
+
+        // Favoritos com feedback
+        function toggleFavorite(musicId) {
+            const index = favorites.indexOf(musicId);
+            if (index === -1) {
+                favorites.push(musicId);
+                alert('Adicionado aos favoritos!');
+            } else {
+                favorites.splice(index, 1);
+                alert('Removido dos favoritos!');
+            }
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            renderMusic(allMusic);
+        }
+
+        // Inicialização
+        loadMusicData();
+    </script>
+</body>
+</html>
